@@ -1,0 +1,71 @@
+{
+  "version": "4",
+  "specifiers": {
+    "jsr:@cross/runtime@1": "1.1.0",
+    "jsr:@cross/runtime@^1.1.0": "1.1.0",
+    "jsr:@cross/test@^0.0.10": "0.0.10",
+    "jsr:@es-toolkit/es-toolkit@^1.30.1": "1.30.1",
+    "jsr:@scroogieboy/directory-to-object@0.6": "0.6.0",
+    "jsr:@std/assert@1": "1.0.10",
+    "jsr:@std/internal@^1.0.5": "1.0.5",
+    "jsr:@zip-js/zip-js@^2.7.54": "2.7.54",
+    "npm:@types/node@*": "22.5.4",
+    "npm:picomatch@^4.0.2": "4.0.2"
+  },
+  "jsr": {
+    "@cross/runtime@1.1.0": {
+      "integrity": "f35a3b768a9de125277329483b684062ffc9ee86f4449cb8b3d614adcad64ffb"
+    },
+    "@cross/test@0.0.10": {
+      "integrity": "5f235cdd927d5551d692bc413458625552d299bc5471baf18180e4287cf4ac20",
+      "dependencies": [
+        "jsr:@cross/runtime@1"
+      ]
+    },
+    "@es-toolkit/es-toolkit@1.30.1": {
+      "integrity": "881aa6c01c7415cdb32e45d793e812946857895a9923be83e6c37317bdeddced"
+    },
+    "@scroogieboy/directory-to-object@0.6.0": {
+      "integrity": "498fdd01d93e43767a255e4bc59f077d783e7f14583dc668bb59080fc2403ffe",
+      "dependencies": [
+        "jsr:@cross/runtime@^1.1.0",
+        "npm:picomatch"
+      ]
+    },
+    "@std/assert@1.0.10": {
+      "integrity": "59b5cbac5bd55459a19045d95cc7c2ff787b4f8527c0dd195078ff6f9481fbb3",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
+    "@std/internal@1.0.5": {
+      "integrity": "54a546004f769c1ac9e025abd15a76b6671ddc9687e2313b67376125650dc7ba"
+    },
+    "@zip-js/zip-js@2.7.54": {
+      "integrity": "a28b93b56a6cb2ed0f613355b2e9120ea9f6e9703dd6ae1bbc0088cfa3fef692"
+    }
+  },
+  "npm": {
+    "@types/node@22.5.4": {
+      "integrity": "sha512-FDuKUJQm/ju9fT/SeX/6+gBzoPzlVCzfzmGkwKvRHQVxi4BntVbyIwf6a4Xn62mrvndLiml6z/UBXIdEVjQLXg==",
+      "dependencies": [
+        "undici-types"
+      ]
+    },
+    "picomatch@4.0.2": {
+      "integrity": "sha512-M7BAV6Rlcy5u+m6oPhAPFgJTzAioX/6B0DxyvDlo9l8+T3nLKbrczg2WLUyzd45L8RqfUMyGPzekbMvX2Ldkwg=="
+    },
+    "undici-types@6.19.8": {
+      "integrity": "sha512-ve2KP6f/JnbPBFyobGHuerC9g1FYGn/F8n1LWTwNxCEzd6IfqTwUQcNXgEtmmQ6DlRrC1hrSrBnCZPokRrDHjw=="
+    }
+  },
+  "workspace": {
+    "dependencies": [
+      "jsr:@cross/test@^0.0.10",
+      "jsr:@es-toolkit/es-toolkit@^1.30.1",
+      "jsr:@scroogieboy/directory-to-object@0.6",
+      "jsr:@std/assert@1",
+      "jsr:@zip-js/zip-js@^2.7.54"
+    ]
+  }
+}
