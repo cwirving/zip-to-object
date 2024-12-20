@@ -7,7 +7,6 @@ import * as zip from "@zip-js/zip-js";
 zip.configure({ useWebWorkers: false });
 
 test("loadObjectFromZipFile reads SimpleDirectory.zip", async () => {
-
   const zipFileUrl = new URL(
     "test_data/SimpleDirectory.zip",
     import.meta.url,

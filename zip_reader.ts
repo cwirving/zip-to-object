@@ -22,11 +22,13 @@ const CACHED_ZIP_FILE_PROTOCOL = "czf:";
 // Capture more useful information about zip file entries:
 // - split the entry path into a parent path and file/directory name (with trailing slashes removed).
 // - generate the URL of the corresponding entry
+// - the entry type (so that we don't need to refer to the zip entry).
 export interface ExtendedZipEntry {
   parentPath: string;
   name: string;
   url: URL;
-  entry: zip.Entry;
+  entry: zip.Entry | undefined;
+  type: DirectoryEntryType;
 }
 
 /**
@@ -34,7 +36,7 @@ export interface ExtendedZipEntry {
  */
 export interface ZipFileInformation {
   /**
-   * The zip file reader that we'll use to work with this file (may be `undefined` if the file has been soft-evicted).
+   * The zip file reader that we'll use to work with this file (can be `undefined` if the file has been soft-evicted).
    */
   reader: zip.ZipReader<Uint8Array> | undefined;
 
@@ -49,9 +51,10 @@ export interface ZipFileInformation {
   location: Readonly<URL>;
 
   /**
-   * The (extended) entries for all the zip file contents (may be `undefined` if the file has been soft-evicted).
+   * The (extended) entries for all the zip file contents (can be `undefined` if the file has been soft-evicted).
+   * The contents are grouped by parent path for fast retrieval.
    */
-  contents: ExtendedZipEntry[] | undefined;
+  contents: Map<string, ExtendedZipEntry[]> | undefined;
 
   /**
    * The time when this entry soft-expires.
@@ -62,6 +65,17 @@ export interface ZipFileInformation {
    * The time when this entry hard expires (is fully evicted).
    */
   hardExpires: number;
+}
+
+export function splitPath(path: string): [string, string] {
+  const lastSlashIndex = path.lastIndexOf("/");
+
+  return (lastSlashIndex >= 0)
+    ? [
+      (path.startsWith("/") ? "" : "/") + path.slice(0, lastSlashIndex),
+      path.slice(lastSlashIndex + 1),
+    ]
+    : ["", path];
 }
 
 /**
@@ -84,39 +98,83 @@ export function extendZipEntry(
   const url = Object.freeze(
     new URL(`${CACHED_ZIP_FILE_PROTOCOL}//${hostname}/${fileName}`),
   );
-  const lastSlashIndex = fileName.lastIndexOf("/");
-  return (lastSlashIndex >= 0)
-    ? {
-      parentPath: "/" + fileName.slice(0, lastSlashIndex),
-      name: fileName.slice(lastSlashIndex + 1),
-      url,
-      entry,
+  const [parentPath, name] = splitPath(fileName);
+  const type = makeDirectoryEntryType(entry);
+
+  return {
+    parentPath,
+    name,
+    url,
+    entry,
+    type,
+  };
+}
+
+/**
+ * Since Microsoft Office documents are zip archives without directory entries, let's synthesize the missing directory
+ * entries for the contents of the archive.
+ *
+ * @param contents The current archive contents
+ * @returns The contents of the archive with missing directories added as synthetic nodes (i.e., `ExtendedZipEntry` with an `entry` property set to `undefined`).
+ */
+export function addMissingDirectoryEntries(
+  contents: ExtendedZipEntry[],
+): ExtendedZipEntry[] {
+  // These are the directories we have so far
+  const directories = new Map<string, ExtendedZipEntry>();
+  for (const entry of contents) {
+    if (entry.type === "directory") {
+      directories.set(`${entry.parentPath}/${entry.name}`, entry);
     }
-    : {
-      parentPath: "",
-      name: fileName,
-      url,
-      entry,
-    };
+  }
+
+  // Are they good enough?
+  for (const entry of contents) {
+    if (entry.parentPath !== "" && !directories.has(entry.parentPath)) {
+      // Nope, this entry's parent (possibly all its parents) is missing.
+      const parentPathElements = entry.parentPath.split("/");
+      let workingPath = parentPathElements.join("/");
+
+      while (parentPathElements.length > 1) {
+        // Figure out the URL for the parent entry
+        const newUrl = new URL(entry.url);
+        newUrl.pathname = workingPath;
+
+        // Pop off the name and create a synthetic entry
+        const name = parentPathElements.pop() ?? "";
+        workingPath = parentPathElements.join("/");
+        const newEntry: ExtendedZipEntry = {
+          parentPath: workingPath,
+          name: name,
+          url: newUrl,
+          entry: undefined,
+          type: "directory",
+        };
+
+        if (!directories.has(newUrl.pathname)) {
+          directories.set(newUrl.pathname, newEntry);
+        }
+      }
+    }
+  }
+
+  // Now it is time to merge the directories from our map with the rest of the entries.
+  return [
+    ...directories.values(),
+    ...contents.filter((e) => e.type !== "directory"),
+  ];
 }
 
 export function makeDirectoryEntryType(entry: zip.Entry): DirectoryEntryType {
   return entry.directory ? "directory" : "file";
 }
 
-export function directoryEntriesForPath(
-  contents: ExtendedZipEntry[],
-  path: string,
-): DirectoryEntry[] {
-  return contents.filter((e) => e.parentPath === path).map<DirectoryEntry>(
-    (e) => {
-      return {
-        name: e.name,
-        type: makeDirectoryEntryType(e.entry),
-        url: e.url,
-      };
-    },
-  );
+export function makeDirectoryEntry(entry: ExtendedZipEntry): DirectoryEntry {
+  return {
+    name: entry.name,
+    type: entry.type,
+    url: entry.url,
+  };
 }
 
 export function haveSoftEvictionCandidates(
@@ -202,12 +260,25 @@ export class ZipReaderImpl implements ZipReader {
 
     const reader = zipFileInformation.reader;
     if (zipFileInformation.contents === undefined) {
-      zipFileInformation.contents = (await reader.getEntries()).map((e) =>
-        extendZipEntry(zipFileInformation.uuid, e)
+      const fixedContents = addMissingDirectoryEntries(
+        (await reader.getEntries()).map((e) =>
+          extendZipEntry(zipFileInformation.uuid, e)
+        ),
+      );
+      zipFileInformation.contents = Map.groupBy(
+        fixedContents,
+        (e) => e.parentPath,
       );
     }
 
-    return directoryEntriesForPath(zipFileInformation.contents, pathInZipFile);
+    const result = zipFileInformation.contents.get(pathInZipFile);
+    if (!result) {
+      throw new Error(
+        `There is no directory at path "${pathInZipFile}" in zip file`,
+      );
+    }
+
+    return result.map(makeDirectoryEntry);
   }
 
   async readBinaryFromFile(
@@ -225,12 +296,20 @@ export class ZipReaderImpl implements ZipReader {
       throw new Error(`Could not find zip file at "${fileUrl.href}"`);
     }
 
-    const fileExtendedEntry = zipFileInformation.contents.find((e) =>
+    const [parentPath, _name] = splitPath(fileUrl.pathname);
+    const directoryContents = zipFileInformation.contents.get(parentPath) ?? [];
+    const fileExtendedEntry = directoryContents.find((e) =>
       e.url.href === fileUrl.href
     );
     if (!fileExtendedEntry) {
       throw new Error(
         `There is no file at path "${fileUrl.pathname}" in zip file`,
+      );
+    }
+
+    if (!fileExtendedEntry.entry) {
+      throw new Error(
+        `Internal error reading file at path "${fileUrl.pathname}" in zip file -- attempting to load a synthetic entry`,
       );
     }
 

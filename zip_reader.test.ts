@@ -7,8 +7,6 @@ import {
 } from "@std/assert";
 import { test } from "@cross/test";
 import {
-  directoryEntriesForPath,
-  type ExtendedZipEntry,
   extendZipEntry,
   haveHardEvictionCandidates,
   haveSoftEvictionCandidates,
@@ -106,6 +104,7 @@ test("extendZipEntry extends entries as expected", () => {
     name: "foo",
     url: new URL("czf://xyz/foo"),
     entry: entry1,
+    type: "file",
   });
 
   const entry2 = makeZipEntry("foo/", true);
@@ -115,6 +114,7 @@ test("extendZipEntry extends entries as expected", () => {
     name: "foo",
     url: new URL("czf://xyz/foo"),
     entry: entry2,
+    type: "directory",
   });
 
   const entry3 = makeZipEntry("foo/bar/baz", false);
@@ -124,6 +124,7 @@ test("extendZipEntry extends entries as expected", () => {
     name: "baz",
     url: new URL("czf://xyz/foo/bar/baz"),
     entry: entry3,
+    type: "file",
   });
 
   const entry4 = makeZipEntry("foo/bar/baz/", true);
@@ -133,65 +134,13 @@ test("extendZipEntry extends entries as expected", () => {
     name: "baz",
     url: new URL("czf://xyz/foo/bar/baz"),
     entry: entry4,
+    type: "directory",
   });
 });
 
 test("makeDirectoryEntryType returns the correct type", () => {
   assertEquals(makeDirectoryEntryType(makeZipEntry("foo", false)), "file");
   assertEquals(makeDirectoryEntryType(makeZipEntry("foo", true)), "directory");
-});
-
-test("directoryEntriesForPath returns the correct entries", () => {
-  const contents: ExtendedZipEntry[] = [
-    extendZipEntry("xyz", makeZipEntry("bar/abc/", true)),
-    extendZipEntry("xyz", makeZipEntry("bar/abc/def", false)),
-    extendZipEntry("xyz", makeZipEntry("foo", false)),
-    extendZipEntry("xyz", makeZipEntry("bar/", true)),
-    extendZipEntry("xyz", makeZipEntry("baz", false)),
-    extendZipEntry("xyz", makeZipEntry("bar/xyz", false)),
-  ];
-
-  assertEquals(directoryEntriesForPath(contents, ""), [
-    {
-      name: "foo",
-      type: "file",
-      url: new URL("czf://xyz/foo"),
-    },
-    {
-      name: "bar",
-      type: "directory",
-      url: new URL("czf://xyz/bar"),
-    },
-    {
-      name: "baz",
-      type: "file",
-      url: new URL("czf://xyz/baz"),
-    },
-  ]);
-
-  assertEquals(directoryEntriesForPath(contents, "x"), []);
-  assertEquals(directoryEntriesForPath(contents, "/x"), []);
-
-  assertEquals(directoryEntriesForPath(contents, "/bar"), [
-    {
-      name: "abc",
-      type: "directory",
-      url: new URL("czf://xyz/bar/abc"),
-    },
-    {
-      name: "xyz",
-      type: "file",
-      url: new URL("czf://xyz/bar/xyz"),
-    },
-  ]);
-
-  assertEquals(directoryEntriesForPath(contents, "/bar/abc"), [
-    {
-      name: "def",
-      type: "file",
-      url: new URL("czf://xyz/bar/abc/def"),
-    },
-  ]);
 });
 
 test("ZipReaderImpl can read CompleteDirectory.zip directories", async () => {
@@ -204,18 +153,18 @@ test("ZipReaderImpl can read CompleteDirectory.zip directories", async () => {
   const entries = await zipReader.readDirectoryContents(zipFileUrl);
   assertEquals(entries.length, 4);
 
-  // Since we control the zip file, we know the order of the entries...
+  // Since we control the zip file, we know the order of the entries (but we move the directories to the beginning)...
   const uuid = entries[0].url.hostname;
   assertEquals(entries, [
-    {
-      name: "binary.bin",
-      type: "file",
-      url: new URL(`czf://${uuid}/binary.bin`),
-    },
     {
       name: "subdirectory",
       type: "directory",
       url: new URL(`czf://${uuid}/subdirectory`),
+    },
+    {
+      name: "binary.bin",
+      type: "file",
+      url: new URL(`czf://${uuid}/binary.bin`),
     },
     {
       name: "subdirectory.json",
@@ -230,7 +179,7 @@ test("ZipReaderImpl can read CompleteDirectory.zip directories", async () => {
   ]);
 
   const subdirectoryEntries = await zipReader.readDirectoryContents(
-    entries[1].url,
+    entries[0].url,
   );
   assertEquals(subdirectoryEntries, [{
     name: "nested.json",
@@ -248,18 +197,18 @@ test("ZipReaderImpl can read CompleteDirectory_windows.zip directories", async (
   const entries = await zipReader.readDirectoryContents(zipFileUrl);
   assertEquals(entries.length, 4);
 
-  // Since we control the zip file, we know the order of the entries...
+  // Since we control the zip file, we know the order of the entries (but we move the directories to the beginning)...
   const uuid = entries[0].url.hostname;
   assertEquals(entries, [
-    {
-      name: "test.txt",
-      type: "file",
-      url: new URL(`czf://${uuid}/test.txt`),
-    },
     {
       name: "subdirectory",
       type: "directory",
       url: new URL(`czf://${uuid}/subdirectory`),
+    },
+    {
+      name: "test.txt",
+      type: "file",
+      url: new URL(`czf://${uuid}/test.txt`),
     },
     {
       name: "binary.bin",
@@ -274,7 +223,7 @@ test("ZipReaderImpl can read CompleteDirectory_windows.zip directories", async (
   ]);
 
   const subdirectoryEntries = await zipReader.readDirectoryContents(
-    entries[1].url,
+    entries[0].url,
   );
   assertEquals(subdirectoryEntries, [{
     name: "nested.json",
@@ -444,7 +393,7 @@ test("ZipReaderImpl rejects on attempts to read nonexistent file", async () => {
   assertEquals(entries.length, 4);
 
   const uuid = entries[0].url.hostname;
-  assertEquals(entries[0], {
+  assertEquals(entries[1], {
     name: "binary.bin",
     type: "file",
     url: new URL(`czf://${uuid}/binary.bin`),
@@ -474,4 +423,14 @@ test("ZipReaderImpl reloads soft-evicted zip files", async () => {
   // Load it again.
   const entries2 = await zipReader.readDirectoryContents(zipFileUrl);
   assertEquals(entries2, entries1);
+});
+
+test("ZipReaderImpl can read zip files without explicit directory entries", async () => {
+  const zipFileUrl = new URL(
+    import.meta.resolve("./test_data/hello_world.docx"),
+  );
+
+  const zipReader = new OpenZipReader({ softTTL: 0, hardTTL: 0 });
+  const entries = await zipReader.readDirectoryContents(zipFileUrl);
+  assertEquals(entries.length, 4);
 });
