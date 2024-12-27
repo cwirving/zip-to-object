@@ -1,341 +1,82 @@
-import {
-  assert,
-  assertEquals,
-  assertExists,
-  assertFalse,
-  assertRejects,
-} from "@std/assert";
+import { assertEquals, assertExists, assertRejects } from "@std/assert";
 import { test } from "@cross/test";
-import {
-  extendZipEntry,
-  haveHardEvictionCandidates,
-  haveSoftEvictionCandidates,
-  makeDirectoryEntryType,
-  type ZipFileInformation,
-  ZipReaderImpl,
-} from "./zip_reader.ts";
-import { DefaultLoaderBuilder } from "@scroogieboy/directory-to-object/factories";
-import type {
-  LoaderBuilder,
-  ValueLoaderOptions,
-} from "@scroogieboy/directory-to-object/interfaces";
-import { merge } from "@es-toolkit/es-toolkit";
+import { ZipReaderImpl } from "./zip_reader.ts";
 import * as zip from "@zip-js/zip-js";
+import type { ZipSingleArchiveReader } from "./zip_single_archive_reader.ts";
+import { cloneEntry } from "./test_utilities.ts";
 
 // Let's not use web workers in zip-js, to keep testing more predictable.
 zip.configure({ useWebWorkers: false });
 
-// Make all the ZipReader members public so we can test them.
+// Make all the protected ZipReader members public so we can test them.
 class OpenZipReader extends ZipReaderImpl {
-  override touchZipFileInformation(info: ZipFileInformation): void {
-    super.touchZipFileInformation(info);
-  }
-  override lookupZipFileInformationByUuid(
-    uuid: string,
-  ): ZipFileInformation | undefined {
-    return super.lookupZipFileInformationByUuid(uuid);
-  }
-
-  override urlToZipFileInformation(
+  override urlToZipSingleArchiveReader(
     url: URL,
-  ): Promise<ZipFileInformation | undefined> {
-    return super.urlToZipFileInformation(url);
+  ): ZipSingleArchiveReader | undefined {
+    return super.urlToZipSingleArchiveReader(url);
   }
 
-  override lookupZipFileInformationByLocation(
+  override lookupZipSingleArchiveReaderByUuid(
+    uuid: string,
+  ): ZipSingleArchiveReader | undefined {
+    return super.lookupZipSingleArchiveReaderByUuid(uuid);
+  }
+
+  override lookupZipSingleArchiveReaderByLocation(
     location: Readonly<URL>,
-  ): ZipFileInformation | undefined {
-    return super.lookupZipFileInformationByLocation(location);
-  }
-
-  override loadZipFile(path: Readonly<URL>): Promise<ZipFileInformation> {
-    return super.loadZipFile(path);
+  ): ZipSingleArchiveReader | undefined {
+    return super.lookupZipSingleArchiveReaderByLocation(location);
   }
 
   override loadAndCacheZipFile(
-    path: Readonly<URL>,
-  ): Promise<ZipFileInformation> {
-    return super.loadAndCacheZipFile(path);
+    location: Readonly<URL>,
+  ): Promise<ZipSingleArchiveReader> {
+    return super.loadAndCacheZipFile(location);
   }
 
-  override scheduleEvictor(): number {
+  override calculateEvictionDelay(): number {
+    return super.calculateEvictionDelay();
+  }
+
+  override scheduleEvictor(): void {
     return super.scheduleEvictor();
   }
 
-  override get cache(): Map<string, ZipFileInformation> {
+  override get cache(): Map<string, WeakRef<ZipSingleArchiveReader>> {
     return super.cache;
   }
 }
 
-function makeZipEntry(filename: string, directory: boolean): zip.Entry {
-  return {
-    offset: 0,
-    filename: filename,
-    rawFilename: new TextEncoder().encode(filename),
-    filenameUTF8: false,
-    directory: directory,
-    encrypted: false,
-    zipCrypto: false,
-    compressedSize: 0,
-    uncompressedSize: 0,
-    lastModDate: new Date(0),
-    rawLastModDate: 0,
-    comment: "",
-    rawComment: new Uint8Array(0),
-    commentUTF8: false,
-    signature: 0,
-    rawExtraField: new Uint8Array(0),
-    zip64: false,
-    version: 0,
-    versionMadeBy: 0,
-    msDosCompatible: false,
-    internalFileAttribute: 0,
-    externalFileAttribute: 0,
-    diskNumberStart: 0,
-    compressionMethod: 0,
-  };
+function sleep(delayMs: number): Promise<void> {
+  return new Promise<void>((resolve) => setTimeout(() => resolve(), delayMs));
 }
 
-test("extendZipEntry extends entries as expected", () => {
-  const entry1 = makeZipEntry("foo", false);
-  const extendedEntry1 = extendZipEntry("xyz", entry1);
-  assertEquals(extendedEntry1, {
-    parentPath: "",
-    name: "foo",
-    url: new URL("czf://xyz/foo"),
-    entry: entry1,
-    type: "file",
-  });
-
-  const entry2 = makeZipEntry("foo/", true);
-  const extendedEntry2 = extendZipEntry("xyz", entry2);
-  assertEquals(extendedEntry2, {
-    parentPath: "",
-    name: "foo",
-    url: new URL("czf://xyz/foo"),
-    entry: entry2,
-    type: "directory",
-  });
-
-  const entry3 = makeZipEntry("foo/bar/baz", false);
-  const extendedEntry3 = extendZipEntry("xyz", entry3);
-  assertEquals(extendedEntry3, {
-    parentPath: "/foo/bar",
-    name: "baz",
-    url: new URL("czf://xyz/foo/bar/baz"),
-    entry: entry3,
-    type: "file",
-  });
-
-  const entry4 = makeZipEntry("foo/bar/baz/", true);
-  const extendedEntry4 = extendZipEntry("xyz", entry4);
-  assertEquals(extendedEntry4, {
-    parentPath: "/foo/bar",
-    name: "baz",
-    url: new URL("czf://xyz/foo/bar/baz"),
-    entry: entry4,
-    type: "directory",
-  });
-});
-
-test("makeDirectoryEntryType returns the correct type", () => {
-  assertEquals(makeDirectoryEntryType(makeZipEntry("foo", false)), "file");
-  assertEquals(makeDirectoryEntryType(makeZipEntry("foo", true)), "directory");
-});
-
-test("ZipReaderImpl can read CompleteDirectory.zip directories", async () => {
+test("ZipReaderImpl happens", async () => {
   const zipFileUrl = new URL(
     import.meta.resolve("./test_data/CompleteDirectory.zip"),
   );
-  const zipReader = new ZipReaderImpl({ name: "foo", softTTL: 0, hardTTL: 0 });
-  assertEquals(zipReader.name, "foo");
+  const zipReader = new OpenZipReader({ archiveTTL: 50 });
 
   const entries = await zipReader.readDirectoryContents(zipFileUrl);
   assertEquals(entries.length, 4);
+  assertEquals(zipReader.cache.size, 1);
 
-  // Since we control the zip file, we know the order of the entries (but we move the directories to the beginning)...
-  const uuid = entries[0].url.hostname;
-  assertEquals(entries, [
-    {
-      name: "subdirectory",
-      type: "directory",
-      url: new URL(`czf://${uuid}/subdirectory`),
-    },
-    {
-      name: "binary.bin",
-      type: "file",
-      url: new URL(`czf://${uuid}/binary.bin`),
-    },
-    {
-      name: "subdirectory.json",
-      type: "file",
-      url: new URL(`czf://${uuid}/subdirectory.json`),
-    },
-    {
-      name: "test.txt",
-      type: "file",
-      url: new URL(`czf://${uuid}/test.txt`),
-    },
-  ]);
+  await sleep(200);
 
-  const subdirectoryEntries = await zipReader.readDirectoryContents(
-    entries[0].url,
-  );
-  assertEquals(subdirectoryEntries, [{
-    name: "nested.json",
-    type: "file",
-    url: new URL(`czf://${uuid}/subdirectory/nested.json`),
-  }]);
+  assertEquals(zipReader.cache.size, 0);
 });
 
-test("ZipReaderImpl can read CompleteDirectory_windows.zip directories", async () => {
-  const zipFileUrl = new URL(
-    import.meta.resolve("./test_data/CompleteDirectory_windows.zip"),
-  );
-  const zipReader = new ZipReaderImpl({ softTTL: 0, hardTTL: 0 });
-
-  const entries = await zipReader.readDirectoryContents(zipFileUrl);
-  assertEquals(entries.length, 4);
-
-  // Since we control the zip file, we know the order of the entries (but we move the directories to the beginning)...
-  const uuid = entries[0].url.hostname;
-  assertEquals(entries, [
-    {
-      name: "subdirectory",
-      type: "directory",
-      url: new URL(`czf://${uuid}/subdirectory`),
-    },
-    {
-      name: "test.txt",
-      type: "file",
-      url: new URL(`czf://${uuid}/test.txt`),
-    },
-    {
-      name: "binary.bin",
-      type: "file",
-      url: new URL(`czf://${uuid}/binary.bin`),
-    },
-    {
-      name: "subdirectory.json",
-      type: "file",
-      url: new URL(`czf://${uuid}/subdirectory.json`),
-    },
-  ]);
-
-  const subdirectoryEntries = await zipReader.readDirectoryContents(
-    entries[0].url,
-  );
-  assertEquals(subdirectoryEntries, [{
-    name: "nested.json",
-    type: "file",
-    url: new URL(`czf://${uuid}/subdirectory/nested.json`),
-  }]);
-});
-
-async function canReadCompleteDirectory(zipFileUrl: URL, newline: string) {
-  // The merge options we'll use.
-  const mergeOptions: ValueLoaderOptions = {
-    arrayMergeFunction: merge,
-    objectMergeFunction: merge,
-  };
-
-  const zipReader = new ZipReaderImpl({ softTTL: 0, hardTTL: 0 });
-  const builder: LoaderBuilder = new DefaultLoaderBuilder(zipReader, zipReader);
-  const loaders = builder.defaults();
-  loaders.push(builder.binaryFile({ extension: ".bin" }));
-
-  const directoryLoader = builder.directoryAsObject({ loaders: loaders });
-  const contents = await directoryLoader.loadDirectory(
-    zipFileUrl,
-    mergeOptions,
-  );
-
-  // Node.js returns binary data as a Buffer, which is a Uint8Array subclass.
-  const binary = contents["binary"];
-  assert(binary instanceof Uint8Array);
-  assertEquals(binary.length, 4);
-  assertEquals(binary[0], 0);
-  assertEquals(binary[1], 255);
-  assertEquals(binary[2], 0);
-  assertEquals(binary[3], 255);
-
-  // Remove it because we can't directly test equality when the actual value may be a Uint8Array subclass.
-  delete contents["binary"];
-
-  assertEquals(contents, {
-    test: `This is a test!${newline}`,
-    subdirectory: {
-      another: "value",
-      nested: {
-        key: "value",
-        key2: "value2",
-      },
-    },
-  });
-}
-
-test("ZipReaderImpl can read CompleteDirectory.zip contents", async () => {
+test("ZipReaderImpl has no eviction until the timeout", async () => {
   const zipFileUrl = new URL(
     import.meta.resolve("./test_data/CompleteDirectory.zip"),
   );
-
-  await canReadCompleteDirectory(zipFileUrl, "\n");
-});
-
-test("ZipReaderImpl can read CompleteDirectory_windows.zip contents", async () => {
-  const zipFileUrl = new URL(
-    import.meta.resolve("./test_data/CompleteDirectory_windows.zip"),
-  );
-
-  await canReadCompleteDirectory(zipFileUrl, "\r\n");
-});
-
-test("ZipReaderImpl soft-eviction happens", async () => {
-  const zipFileUrl = new URL(
-    import.meta.resolve("./test_data/CompleteDirectory.zip"),
-  );
-  const zipReader = new OpenZipReader({ softTTL: 100, hardTTL: 0 });
-
-  const entries = await zipReader.readDirectoryContents(zipFileUrl);
-  assertEquals(entries.length, 4);
-  assert(haveSoftEvictionCandidates(zipReader.cache));
-  assert(haveHardEvictionCandidates(zipReader.cache));
-
-  const { promise, resolve } = Promise.withResolvers<void>();
-  setTimeout(resolve, 200);
-  await promise;
-
-  assertFalse(haveSoftEvictionCandidates(zipReader.cache));
-  assert(haveHardEvictionCandidates(zipReader.cache));
-});
-
-test("ZipReaderImpl hard-eviction happens", async () => {
-  const zipFileUrl = new URL(
-    import.meta.resolve("./test_data/CompleteDirectory.zip"),
-  );
-  const zipReader = new OpenZipReader({ softTTL: 0, hardTTL: 100 });
-
-  await zipReader.readDirectoryContents(zipFileUrl);
-
-  const { promise, resolve } = Promise.withResolvers<void>();
-  setTimeout(resolve, 200);
-  await promise;
-
-  assertFalse(haveSoftEvictionCandidates(zipReader.cache));
-  assertFalse(haveHardEvictionCandidates(zipReader.cache));
-});
-
-test("ZipReaderImpl has no soft-eviction until the timeout", async () => {
-  const zipFileUrl = new URL(
-    import.meta.resolve("./test_data/CompleteDirectory.zip"),
-  );
-  const zipReader = new OpenZipReader({ softTTL: 100, hardTTL: 0 });
+  const zipReader = new OpenZipReader({ archiveTTL: 100 });
 
   const entries1 = await zipReader.readDirectoryContents(zipFileUrl);
   assertEquals(entries1.length, 4);
   const cache1 = zipReader.cache;
   assertEquals(cache1.size, 1);
-  const cachedReader1 = cache1.values().next().value?.reader;
+  const cachedReader1 = cache1.values().next().value?.deref();
   assertExists(cachedReader1);
 
   // If we immediately read the contents again, it will use the existing cached reader.
@@ -343,22 +84,19 @@ test("ZipReaderImpl has no soft-eviction until the timeout", async () => {
   assertEquals(entries2.length, 4);
   const cache2 = zipReader.cache;
   assertEquals(cache2.size, 1);
-  const cachedReader2 = cache2.values().next().value?.reader;
+  const cachedReader2 = cache2.values().next().value?.deref();
   assertEquals(cachedReader2, cachedReader1);
 
-  const { promise, resolve } = Promise.withResolvers<void>();
-  setTimeout(resolve, 200);
-  await promise;
+  await sleep(200);
 
-  assertFalse(haveSoftEvictionCandidates(zipReader.cache));
-  assert(haveHardEvictionCandidates(zipReader.cache));
+  assertEquals(zipReader.cache.size, 0);
 });
 
 test("ZipReaderImpl cache can be cleared", async () => {
   const zipFileUrl = new URL(
     import.meta.resolve("./test_data/CompleteDirectory.zip"),
   );
-  const zipReader = new OpenZipReader({ softTTL: 100, hardTTL: 0 });
+  const zipReader = new OpenZipReader({ archiveTTL: 0 });
 
   await zipReader.readDirectoryContents(zipFileUrl);
   assertEquals(zipReader.cache.size, 1);
@@ -367,8 +105,19 @@ test("ZipReaderImpl cache can be cleared", async () => {
   assertEquals(zipReader.cache.size, 0);
 });
 
+test("ZipReaderImpl archiveTTL of zero means 'cache forever'", async () => {
+  const zipFileUrl = new URL(
+    import.meta.resolve("./test_data/CompleteDirectory.zip"),
+  );
+  const zipReader = new OpenZipReader({ archiveTTL: 0 });
+
+  await zipReader.readDirectoryContents(zipFileUrl);
+  assertEquals(zipReader.cache.size, 1);
+  assertEquals(zipReader.calculateEvictionDelay(), -1);
+});
+
 test("ZipReaderImpl rejects on attempts to read evicted cache contents", async () => {
-  const zipReader = new OpenZipReader({ softTTL: 0, hardTTL: 0 });
+  const zipReader = new OpenZipReader({ archiveTTL: 0 });
 
   await assertRejects(
     () =>
@@ -379,7 +128,11 @@ test("ZipReaderImpl rejects on attempts to read evicted cache contents", async (
   );
   await assertRejects(
     () => zipReader.readBinaryFromFile(new URL("czf://nonexistent/file")),
-    "Could not find zip file",
+    "readBinaryFromFile: Cannot find cached zip file reader",
+  );
+  await assertRejects(
+    () => zipReader.readTextFromFile(new URL("czf://nonexistent/file")),
+    "readTextFromFile: Cannot find cached zip file reader",
   );
 });
 
@@ -388,12 +141,12 @@ test("ZipReaderImpl rejects on attempts to read nonexistent file", async () => {
     import.meta.resolve("./test_data/CompleteDirectory.zip"),
   );
 
-  const zipReader = new OpenZipReader({ softTTL: 0, hardTTL: 0 });
+  const zipReader = new OpenZipReader({ archiveTTL: 0 });
   const entries = await zipReader.readDirectoryContents(zipFileUrl);
   assertEquals(entries.length, 4);
 
   const uuid = entries[0].url.hostname;
-  assertEquals(entries[1], {
+  assertEquals(cloneEntry(entries[1]), {
     name: "binary.bin",
     type: "file",
     url: new URL(`czf://${uuid}/binary.bin`),
@@ -406,31 +159,28 @@ test("ZipReaderImpl rejects on attempts to read nonexistent file", async () => {
   );
 });
 
-test("ZipReaderImpl reloads soft-evicted zip files", async () => {
+test("ZipReaderImpl reloads evicted zip files", async () => {
   const zipFileUrl = new URL(
     import.meta.resolve("./test_data/CompleteDirectory.zip"),
   );
 
-  const zipReader = new OpenZipReader({ softTTL: 0, hardTTL: 0 });
+  const zipReader = new OpenZipReader({ archiveTTL: 10 });
   const entries1 = await zipReader.readDirectoryContents(zipFileUrl);
   assertEquals(entries1.length, 4);
 
-  // Remove the references to cached data.
-  const cache = Array.from(zipReader.cache.values());
-  cache[0].reader = undefined;
-  cache[0].contents = undefined;
+  // Wait for the cached data to be evicted
+  await sleep(100);
+  assertEquals(zipReader.cache.size, 0);
 
   // Load it again.
   const entries2 = await zipReader.readDirectoryContents(zipFileUrl);
-  assertEquals(entries2, entries1);
-});
-
-test("ZipReaderImpl can read zip files without explicit directory entries", async () => {
-  const zipFileUrl = new URL(
-    import.meta.resolve("./test_data/hello_world.docx"),
+  // Make sure that the same names, types and URL paths are there
+  assertEquals(entries2.map((e) => e.name), entries1.map((e) => e.name));
+  assertEquals(entries2.map((e) => e.type), entries1.map((e) => e.type));
+  assertEquals(
+    entries2.map((e) => e.url.pathname),
+    entries1.map((e) => e.url.pathname),
   );
 
-  const zipReader = new OpenZipReader({ softTTL: 0, hardTTL: 0 });
-  const entries = await zipReader.readDirectoryContents(zipFileUrl);
-  assertEquals(entries.length, 4);
+  zipReader.clear();
 });

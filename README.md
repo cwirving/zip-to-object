@@ -9,11 +9,9 @@ formats that are internally a zip file. Just like
 single object in memory, this allows complete zip file contents to be loaded as
 one.
 
-## Installation & simple usage
+## Installation & example
 
 ### Deno
-
-First, install the package:
 
 ```
 deno add jsr:@scroogieboy/zip-to-object
@@ -33,25 +31,22 @@ console.log(JSON.stringify(contents, null, 2));
 
 ### Bun
 
-Install the package:
-
 ```
 bunx jsr add @scroogieboy/zip-to-object
 ```
 
-Usage is the same as with Deno.
-
 ### Node.js
-
-Install the package:
 
 ```
 npx jsr add @scroogieboy/zip-to-object
 ```
 
-This is an ESM-only package, so -- as per the
+**Note:** This is an ESM-only package, so -- as per the
 [JSR documentation](https://jsr.io/docs/with/node), this means that the
 consuming project must be an ESM project (`"type": "module"` in the project's
 `package.json` ).
 
-## 
+## Limitations
+
+The zip file loader only decodes textual contents in UTF-8 encoding. Don't try
+to read old MS-DOS zip files with this!

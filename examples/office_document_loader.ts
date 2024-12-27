@@ -1,4 +1,5 @@
-import { loadObjectFromZipFile, zipDefaultLoaders, ZipLoaders } from '../mod.ts';
+import { defaultLoaders, Loaders } from "@scroogieboy/directory-to-object";
+import { loadObjectFromZipFile, zipReader } from '../mod.ts';
 import { parse } from "@libs/xml";
 
 const zipFileUrl = new URL(
@@ -6,10 +7,13 @@ const zipFileUrl = new URL(
   import.meta.url,
 );
 
-const xmlLoader = ZipLoaders.customFile({name: "XML file value loader", parser: parse}).whenExtensionIsOneOf([".xml", ".rels"]);
+const xmlLoader = Loaders.customFile({name: "XML file value loader", parser: parse}).whenExtensionIsOneOf([".xml", ".rels"]);
 
-zipDefaultLoaders.push(xmlLoader);
+defaultLoaders.push(xmlLoader);
 
 const contents = await loadObjectFromZipFile(zipFileUrl);
 
 console.log(JSON.stringify(contents, null, 2));
+
+// So we don't have to wait for eviction to happen.
+zipReader.clear();
