@@ -1,5 +1,4 @@
 import type * as zip from "@zip-js/zip-js";
-import type { DirectoryEntry } from "@scroogieboy/directory-to-object/interfaces";
 
 export function makeZipEntry(filename: string, directory: boolean): zip.Entry {
   return {
@@ -27,13 +26,5 @@ export function makeZipEntry(filename: string, directory: boolean): zip.Entry {
     externalFileAttribute: 0,
     diskNumberStart: 0,
     compressionMethod: 0,
-  };
-}
-
-export function cloneEntry(entry: DirectoryEntry): DirectoryEntry {
-  return {
-    name: entry.name,
-    type: entry.type,
-    url: entry.url,
   };
 }

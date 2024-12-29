@@ -1,5 +1,6 @@
 import { CACHED_ZIP_FILE_PROTOCOL } from "./constants.ts";
 import type {
+  DirectoryContents,
   DirectoryEntry,
   DirectoryEntryType,
   FileSystemReader,
@@ -11,22 +12,16 @@ import * as zip from "@zip-js/zip-js";
 
 const textDecoder = new TextDecoder();
 
-class DirectoryEntryWithReaderReference implements DirectoryEntry {
-  readonly #reader: FileSystemReader; // Present only to keep the reader alive.
-  url: URL;
-  type: DirectoryEntryType;
-  name: string;
+class DirectoryContentsWithReaderReference implements DirectoryContents {
+  readonly #reader: FileSystemReader;
+  readonly entries: DirectoryEntry[];
 
   constructor(
     reader: FileSystemReader,
-    url: URL,
-    type: DirectoryEntryType,
-    name: string,
+    entries: DirectoryEntry[],
   ) {
     this.#reader = reader;
-    this.url = url;
-    this.type = type;
-    this.name = name;
+    this.entries = entries;
   }
 }
 
@@ -82,7 +77,7 @@ export class ZipSingleArchiveReader implements FileSystemReader {
   readDirectoryContents(
     path: URL,
     _options?: Readonly<ReadDirectoryContentsOptions>,
-  ): Promise<DirectoryEntry[]> {
+  ): Promise<DirectoryContents> {
     const pathInZipFile = (path.protocol === CACHED_ZIP_FILE_PROTOCOL)
       ? path.pathname
       : "";
@@ -94,7 +89,10 @@ export class ZipSingleArchiveReader implements FileSystemReader {
       );
     }
 
-    return Promise.resolve(result.map((e) => makeDirectoryEntry(this, e)));
+    const entries = result.map(makeDirectoryEntry);
+    return Promise.resolve(
+      new DirectoryContentsWithReaderReference(this, entries),
+    );
   }
 
   readBinaryFromFile(
@@ -310,20 +308,15 @@ export function makeDirectoryEntryType(entry: zip.Entry): DirectoryEntryType {
 /**
  * Create a {@linkcode DirectoryEntryType} from a {@linkcode ExtendedZipEntry}.
  *
- * @param reader the `FileSystemReader` that contains the entry (and to which we want to hold a reference).
  * @param entry The source extended entry.
- * @returns An object implementing interface {@linkcode DirectoryEntry} for the entry, which also holds a private
- * reference back to the reader (so that it does not get garbage-collected until all the directory entries are no
- * longer in use).
+ * @returns An object implementing interface {@linkcode DirectoryEntry} for the entry.
  */
 export function makeDirectoryEntry(
-  reader: FileSystemReader,
   entry: ExtendedZipEntry,
 ): DirectoryEntry {
-  return new DirectoryEntryWithReaderReference(
-    reader,
-    entry.url,
-    entry.type,
-    entry.name,
-  );
+  return {
+    name: entry.name,
+    type: entry.type,
+    url: entry.url,
+  };
 }

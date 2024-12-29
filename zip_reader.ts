@@ -1,5 +1,5 @@
 import type {
-  DirectoryEntry,
+  DirectoryContents,
   FileSystemReader,
   ReadBinaryFromFileOptions,
   ReadDirectoryContentsOptions,
@@ -29,13 +29,28 @@ export class ZipReaderImpl implements ZipReader {
   async readDirectoryContents(
     directoryUrl: URL,
     options?: Readonly<ReadDirectoryContentsOptions>,
-  ): Promise<DirectoryEntry[]> {
+  ): Promise<DirectoryContents> {
     options?.signal?.throwIfAborted();
 
     const cachedReader = this.urlToZipSingleArchiveReader(directoryUrl) ??
       await this.loadAndCacheZipFile(directoryUrl);
 
-    return cachedReader.readDirectoryContents(directoryUrl, options);
+    const contents = await cachedReader.readDirectoryContents(
+      directoryUrl,
+      options,
+    );
+
+    // When the request is for the zip archive as a whole, let's ensure that the
+    if (directoryUrl.protocol !== CACHED_ZIP_FILE_PROTOCOL) {
+      contents.dispose = () => {
+        this.#cache.delete(cachedReader.uuid);
+        if (this.#cache.size === 0) {
+          this.clear(); // Which will also clear any pending evictors.
+        }
+      };
+    }
+
+    return contents;
   }
 
   readBinaryFromFile(
@@ -178,5 +193,9 @@ export class ZipReaderImpl implements ZipReader {
     for (const key of keysToRemove) {
       this.#cache.delete(key);
     }
+  }
+
+  protected isEvictorScheduled(): boolean {
+    return this.#evictorTimeoutId > 0;
   }
 }

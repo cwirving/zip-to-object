@@ -15,7 +15,7 @@ import type {
   ValueLoaderOptions,
 } from "@scroogieboy/directory-to-object/interfaces";
 import { merge } from "@es-toolkit/es-toolkit";
-import { cloneEntry, makeZipEntry } from "./test_utilities.ts";
+import { makeZipEntry } from "./test_utilities.ts";
 
 // Let's not use web workers in zip-js, to keep testing more predictable.
 zip.configure({ useWebWorkers: false });
@@ -77,12 +77,12 @@ test("ZipReaderImpl can read CompleteDirectory.zip directories", async () => {
   );
   assertEquals(zipReader.name, zipFileUrl.href);
 
-  const entries = await zipReader.readDirectoryContents(zipFileUrl);
-  assertEquals(entries.length, 4);
+  const contents = await zipReader.readDirectoryContents(zipFileUrl);
+  assertEquals(contents.entries.length, 4);
 
   // Since we control the zip file, we know the order of the entries (but we move the directories to the beginning)...
-  const uuid = entries[0].url.hostname;
-  assertEquals(entries.map(cloneEntry), [
+  const uuid = contents.entries[0].url.hostname;
+  assertEquals(contents.entries, [
     {
       name: "subdirectory",
       type: "directory",
@@ -105,10 +105,10 @@ test("ZipReaderImpl can read CompleteDirectory.zip directories", async () => {
     },
   ]);
 
-  const subdirectoryEntries = await zipReader.readDirectoryContents(
-    entries[0].url,
+  const subdirectoryContents = await zipReader.readDirectoryContents(
+    contents.entries[0].url,
   );
-  assertEquals(subdirectoryEntries.map(cloneEntry), [{
+  assertEquals(subdirectoryContents.entries, [{
     name: "nested.json",
     type: "file",
     url: new URL(`czf://${uuid}/subdirectory/nested.json`),
@@ -124,12 +124,12 @@ test("ZipReaderImpl can read CompleteDirectory_windows.zip directories", async (
     newFileSystemReader(),
   );
 
-  const entries = await zipReader.readDirectoryContents(zipFileUrl);
-  assertEquals(entries.length, 4);
+  const contents = await zipReader.readDirectoryContents(zipFileUrl);
+  assertEquals(contents.entries.length, 4);
 
   // Since we control the zip file, we know the order of the entries (but we move the directories to the beginning)...
-  const uuid = entries[0].url.hostname;
-  assertEquals(entries.map(cloneEntry), [
+  const uuid = contents.entries[0].url.hostname;
+  assertEquals(contents.entries, [
     {
       name: "subdirectory",
       type: "directory",
@@ -152,10 +152,10 @@ test("ZipReaderImpl can read CompleteDirectory_windows.zip directories", async (
     },
   ]);
 
-  const subdirectoryEntries = await zipReader.readDirectoryContents(
-    entries[0].url,
+  const subdirectoryContents = await zipReader.readDirectoryContents(
+    contents.entries[0].url,
   );
-  assertEquals(subdirectoryEntries.map(cloneEntry), [{
+  assertEquals(subdirectoryContents.entries, [{
     name: "nested.json",
     type: "file",
     url: new URL(`czf://${uuid}/subdirectory/nested.json`),
@@ -233,6 +233,6 @@ test("ZipReaderImpl can read zip files without explicit directory entries", asyn
     newFileSystemReader(),
   );
 
-  const entries = await zipReader.readDirectoryContents(zipFileUrl);
-  assertEquals(entries.length, 4);
+  const contents = await zipReader.readDirectoryContents(zipFileUrl);
+  assertEquals(contents.entries.length, 4);
 });

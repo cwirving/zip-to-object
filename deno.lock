@@ -4,8 +4,8 @@
     "jsr:@cross/runtime@1": "1.1.0",
     "jsr:@cross/runtime@^1.1.0": "1.1.0",
     "jsr:@cross/test@^0.0.10": "0.0.10",
-    "jsr:@es-toolkit/es-toolkit@^1.30.1": "1.30.1",
-    "jsr:@scroogieboy/directory-to-object@0.7": "0.7.0",
+    "jsr:@es-toolkit/es-toolkit@^1.30.1": "1.31.0",
+    "jsr:@scroogieboy/directory-to-object@0.8": "0.8.0",
     "jsr:@std/assert@1": "1.0.10",
     "jsr:@std/internal@^1.0.5": "1.0.5",
     "jsr:@zip-js/zip-js@^2.7.54": "2.7.54",
@@ -25,8 +25,11 @@
     "@es-toolkit/es-toolkit@1.30.1": {
       "integrity": "881aa6c01c7415cdb32e45d793e812946857895a9923be83e6c37317bdeddced"
     },
-    "@scroogieboy/directory-to-object@0.7.0": {
-      "integrity": "e5862c8357056edf9d43ec2462be1bb308297262495ed74ebcf5fa9f3802afea",
+    "@es-toolkit/es-toolkit@1.31.0": {
+      "integrity": "58479e1c72e58177a937bafd342504f32e1cdc922603835f06af9ef79f8203ed"
+    },
+    "@scroogieboy/directory-to-object@0.8.0": {
+      "integrity": "e8814972ff1ef9fac21c931e583dc58bf1d54dfa7275cd3293d05df06379ccdd",
       "dependencies": [
         "jsr:@cross/runtime@^1.1.0",
         "npm:picomatch"
@@ -63,7 +66,7 @@
     "dependencies": [
       "jsr:@cross/test@^0.0.10",
       "jsr:@es-toolkit/es-toolkit@^1.30.1",
-      "jsr:@scroogieboy/directory-to-object@0.7",
+      "jsr:@scroogieboy/directory-to-object@0.8",
       "jsr:@std/assert@1",
       "jsr:@zip-js/zip-js@^2.7.54"
     ]

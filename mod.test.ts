@@ -1,10 +1,16 @@
 import { test } from "@cross/test";
-import { assertEquals } from "@std/assert";
+import { assert, assertEquals, assertExists } from "@std/assert";
 import { loadObjectFromZipFile, zipReader } from "./mod.ts";
 import * as zip from "@zip-js/zip-js";
+import { ZipReaderImpl } from "./zip_reader.ts";
 
 // Let's not use web workers in zip-js, to keep testing more predictable.
 zip.configure({ useWebWorkers: false });
+
+test("zipReader is defined", () => {
+  assertExists(zipReader);
+  assert(zipReader instanceof ZipReaderImpl);
+});
 
 test("loadObjectFromZipFile reads SimpleDirectory.zip", async () => {
   const zipFileUrl = new URL(
@@ -12,7 +18,6 @@ test("loadObjectFromZipFile reads SimpleDirectory.zip", async () => {
     import.meta.url,
   );
   const contents = await loadObjectFromZipFile(zipFileUrl);
-  zipReader.clear();
 
   assertEquals(contents, {
     json: {
