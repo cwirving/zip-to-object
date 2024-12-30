@@ -1,13 +1,13 @@
 # Zip file support for `@scroogieboy/directory-to-object`
 
-This library is both an example of writing your own file reader / directory
-contents reader implementation for
+This library is both an example of writing your own file system reader
+implementation for
 [`@scroogieboy/directory-to-object`](https://jsr.io/@scroogieboy/directory-to-object)and
 a useful library in its own right, given the prevalence of application file
 formats that are internally a zip file. Just like
-`@scroogieboy/directory-to-object` allows directory structures to be loaded as a
-single object in memory, this allows complete zip file contents to be loaded as
-one.
+`@scroogieboy/directory-to-object` on its own allows directory structures to be
+loaded as a single object in memory, this allows complete zip file contents to
+be loaded as one.
 
 ## Installation & example
 
@@ -48,8 +48,6 @@ consuming project must be an ESM project (`"type": "module"` in the project's
 
 ## Examples
 
-### Building a customized zip archive reader
-
 ### Loading Office documents
 
 Combining the `loadObjectFromZipFile` function and a custom XML loader, we can
@@ -58,7 +56,7 @@ documents:
 
 ```typescript
 import { defaultLoaders, Loaders } from "@scroogieboy/directory-to-object";
-import { loadObjectFromZipFile, zipReader } from "@scroogieboy/zip-to-object";
+import { loadObjectFromZipFile } from "@scroogieboy/zip-to-object";
 import { parse } from "@libs/xml";
 
 const zipFileUrl = new URL(
@@ -82,5 +80,13 @@ console.log(JSON.stringify(contents, null, 2));
 
 ## Limitations
 
-The zip file loader only decodes textual contents in UTF-8 encoding. Don't try
+This is mostly a proof of concept -- not an industrially-tested library at the
+moment. Use with caution.
+
+The zip file reader does not support nested archives. Directories can contain
+many archive files, but archive files cannot contain other archives -- there is
+no concept of runtime reader containment, there is only static containment
+determined at compile time.
+
+The zip file reader only decodes textual contents in UTF-8 encoding. Don't try
 to read old MS-DOS zip files with this!

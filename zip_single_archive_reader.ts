@@ -1,4 +1,3 @@
-import { CACHED_ZIP_FILE_PROTOCOL } from "./constants.ts";
 import type {
   DirectoryContents,
   DirectoryEntry,
@@ -9,6 +8,9 @@ import type {
   ReadTextFromFileOptions,
 } from "@scroogieboy/directory-to-object/interfaces";
 import * as zip from "@zip-js/zip-js";
+
+// The URL protocol we'll use for cached zip files.
+export const CACHED_ZIP_FILE_PROTOCOL = "czf:";
 
 const textDecoder = new TextDecoder();
 
@@ -41,16 +43,9 @@ export class ZipSingleArchiveReader implements FileSystemReader {
   #contents: Map<string, ExtendedZipEntry[]> | undefined;
 
   /**
-   * The timestamp when this reader was last used.
-   *
-   * @private
-   */
-  #lastUsed: number;
-
-  /**
    * The uuid that we'll use as an identifier for this archive.
    */
-  readonly uuid: string = crypto.randomUUID();
+  readonly #uuid: string = crypto.randomUUID();
 
   /**
    * The location of the source zip file.
@@ -59,15 +54,6 @@ export class ZipSingleArchiveReader implements FileSystemReader {
 
   protected constructor(location: URL) {
     this.location = Object.freeze(new URL(location));
-    this.#lastUsed = Date.now();
-  }
-
-  get lastUsed(): number {
-    return this.#lastUsed;
-  }
-
-  updateLastUsed(): void {
-    this.#lastUsed = Date.now();
   }
 
   get name(): string {
@@ -163,7 +149,7 @@ export class ZipSingleArchiveReader implements FileSystemReader {
     // Load the entries from the zip reader, extend them and synthesize any missing directory entries.
     const fixedContents = addMissingDirectoryEntries(
       (await this.#reader.getEntries()).map((e) =>
-        extendZipEntry(this.uuid, e)
+        extendZipEntry(this.#uuid, e)
       ),
     );
 

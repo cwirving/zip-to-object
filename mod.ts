@@ -1,17 +1,17 @@
 import type {
+  FileSystemReader,
   ValueLoaderOptions,
 } from "@scroogieboy/directory-to-object/interfaces";
 import { defaultLoaders, Loaders } from "@scroogieboy/directory-to-object";
 import { newZipReader } from "./factories.ts";
-import type { ZipReader } from "./interfaces.ts";
 
 /**
- * A singleton implementing the {@linkcode ZipReader} interface.
+ * A singleton implementing the {@linkcode FileSystemReader} interface.
  *
  * This singleton uses the default platform-specific file reader from `@scroogieboy/directory-to-object` to read
  * zip files from the local file system.
  */
-export const zipReader: ZipReader = newZipReader({
+export const zipReader: FileSystemReader = newZipReader({
   name: "Default .zip file reader",
 });
 
