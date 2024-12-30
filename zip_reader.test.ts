@@ -1,13 +1,13 @@
 import { assertEquals, assertRejects } from "@std/assert";
 import { test } from "@cross/test";
-import { ZipReaderImpl } from "./zip_reader.ts";
+import { ZipReader } from "./zip_reader.ts";
 import * as zip from "@zip-js/zip-js";
 
 // Let's not use web workers in zip-js, to keep testing more predictable.
 zip.configure({ useWebWorkers: false });
 
-test("ZipReaderImpl rejects on attempts to read nonexistent cache contents", async () => {
-  const zipReader = new ZipReaderImpl();
+test("ZipReader rejects on attempts to read nonexistent cache contents", async () => {
+  const zipReader = new ZipReader();
 
   await assertRejects(
     () => zipReader.readBinaryFromFile(new URL("czf://nonexistent/file")),
@@ -19,12 +19,12 @@ test("ZipReaderImpl rejects on attempts to read nonexistent cache contents", asy
   );
 });
 
-test("ZipReaderImpl rejects on attempts to read nonexistent file", async () => {
+test("ZipReader rejects on attempts to read nonexistent file", async () => {
   const zipFileUrl = new URL(
     import.meta.resolve("./test_data/CompleteDirectory.zip"),
   );
 
-  const zipReader = new ZipReaderImpl();
+  const zipReader = new ZipReader();
   const contents = await zipReader.readDirectoryContents(zipFileUrl);
   assertEquals(contents.entries.length, 4);
 
@@ -42,12 +42,12 @@ test("ZipReaderImpl rejects on attempts to read nonexistent file", async () => {
   );
 });
 
-test("ZipReaderImpl reloads zip files", async () => {
+test("ZipReader reloads zip files", async () => {
   const zipFileUrl = new URL(
     import.meta.resolve("./test_data/CompleteDirectory.zip"),
   );
 
-  const zipReader = new ZipReaderImpl();
+  const zipReader = new ZipReader();
   const contents1 = await zipReader.readDirectoryContents(zipFileUrl);
   assertEquals(contents1.entries.length, 4);
 

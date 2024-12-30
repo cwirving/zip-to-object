@@ -1,0 +1,23 @@
+{
+  "name": "otd",
+  "module": "mod.ts",
+  "type": "module",
+  "dependencies": {
+    "@cross/runtime": "npm:@jsr/cross__runtime@^1.1.0",
+    "@scroogieboy/directory-to-object": "npm:@jsr/scroogieboy__directory-to-object@^0.8.2",
+    "@zip-js/zip-js": "npm:@jsr/zip-js__zip-js@^2.7.54",
+    "picomatch": "^4.0.2"
+  },
+  "devDependencies": {
+    "@cross/test": "npm:@jsr/cross__test@^0.0.10",
+    "@es-toolkit/es-toolkit": "npm:@jsr/es-toolkit__es-toolkit@^1.20.0-dev.629+fd119dd2",
+    "@std/assert": "npm:@jsr/std__assert@^1.0.4",
+    "@std/path": "npm:@jsr/std__path@^1.0.8",
+    "@types/node": "latest",
+    "fast-check": "^3.23.1",
+    "tsx": "^4.19.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

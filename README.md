@@ -3,11 +3,11 @@
 This library is both an example of writing your own file system reader
 implementation for
 [`@scroogieboy/directory-to-object`](https://jsr.io/@scroogieboy/directory-to-object)and
-a useful library in its own right, given the prevalence of application file
-formats that are internally a zip file. Just like
+a useful add-on to the library in its own right, given the prevalence of
+application file formats that are internally a zip archive. Just like
 `@scroogieboy/directory-to-object` on its own allows directory structures to be
-loaded as a single object in memory, this allows complete zip file contents to
-be loaded as one.
+loaded as a single object in memory, this allows complete zip archive contents
+to be loaded as one.
 
 ## Installation & example
 
@@ -83,10 +83,9 @@ console.log(JSON.stringify(contents, null, 2));
 This is mostly a proof of concept -- not an industrially-tested library at the
 moment. Use with caution.
 
-The zip file reader does not support nested archives. Directories can contain
-many archive files, but archive files cannot contain other archives -- there is
-no concept of runtime reader containment, there is only static containment
-determined at compile time.
+The zip file reader does not support nested archives. This loads the contents of
+a zip archive but doesn't support directory/archive structures _containing_ zip
+archives.
 
 The zip file reader only decodes textual contents in UTF-8 encoding. Don't try
-to read old MS-DOS zip files with this!
+to read old MS-DOS zip archives with this!

@@ -9,7 +9,7 @@ import type {
 } from "@scroogieboy/directory-to-object/interfaces";
 import * as zip from "@zip-js/zip-js";
 
-// The URL protocol we'll use for cached zip files.
+// The URL protocol we'll use for references to zip contents.
 export const CACHED_ZIP_FILE_PROTOCOL = "czf:";
 
 const textDecoder = new TextDecoder();
