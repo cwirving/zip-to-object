@@ -70,9 +70,13 @@ export class ZipSingleArchiveReader implements FileSystemReader {
 
     const result = this.#contents?.get(pathInZipFile);
     if (!result) {
-      throw new Error(
-        `There is no directory at path "${pathInZipFile}" in zip file`,
+      // if pathInZipFile is an empty directory, this will throw an error return empty array
+      return Promise.resolve(
+        new DirectoryContentsWithReaderReference(this, [])
       );
+      /*throw new Error(
+        `There is no directory at path "${pathInZipFile}" in zip file`,
+      );*/
     }
 
     const entries = result.map(makeDirectoryEntry);
