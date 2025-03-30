@@ -5,7 +5,7 @@
     "jsr:@cross/runtime@^1.1.0": "1.1.0",
     "jsr:@cross/test@^0.0.10": "0.0.10",
     "jsr:@es-toolkit/es-toolkit@^1.30.1": "1.31.0",
-    "jsr:@scroogieboy/directory-to-object@~0.8.1": "0.8.1",
+    "jsr:@scroogieboy/directory-to-object@~0.8.2": "0.8.2",
     "jsr:@std/assert@1": "1.0.10",
     "jsr:@std/internal@^1.0.5": "1.0.5",
     "jsr:@zip-js/zip-js@^2.7.54": "2.7.54",
@@ -28,8 +28,8 @@
     "@es-toolkit/es-toolkit@1.31.0": {
       "integrity": "58479e1c72e58177a937bafd342504f32e1cdc922603835f06af9ef79f8203ed"
     },
-    "@scroogieboy/directory-to-object@0.8.1": {
-      "integrity": "307e9a08fd913a5065f6d31668d81cf3a98555be59a7ee00a8432df146e54a3c",
+    "@scroogieboy/directory-to-object@0.8.2": {
+      "integrity": "ef17f3519f2c7a45c452a06cdd438e1850226be0a1cd0753e2244652fc7d798f",
       "dependencies": [
         "jsr:@cross/runtime@^1.1.0",
         "npm:picomatch"
@@ -66,7 +66,7 @@
     "dependencies": [
       "jsr:@cross/test@^0.0.10",
       "jsr:@es-toolkit/es-toolkit@^1.30.1",
-      "jsr:@scroogieboy/directory-to-object@~0.8.1",
+      "jsr:@scroogieboy/directory-to-object@~0.8.2",
       "jsr:@std/assert@1",
       "jsr:@zip-js/zip-js@^2.7.54"
     ]

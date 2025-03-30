@@ -1,7 +1,11 @@
-import { assert, assertEquals } from "@std/assert";
+import { assert, assertEquals, assertExists } from "@std/assert";
 import { test } from "@cross/test";
 import {
+  ExtendedZipEntry,
   extendZipEntry,
+  getOrCreateContentsMapEntry,
+  getZipEntryPath,
+  makeContentsMap,
   makeDirectoryEntryType,
   ZipSingleArchiveReader,
 } from "./zip_single_archive_reader.ts";
@@ -235,4 +239,59 @@ test("ZipReaderImpl can read zip files without explicit directory entries", asyn
 
   const contents = await zipReader.readDirectoryContents(zipFileUrl);
   assertEquals(contents.entries.length, 4);
+});
+
+test("makeContentsMap creates a contents map", () => {
+  const emptyContentsMap = makeContentsMap([]);
+  assertEquals(emptyContentsMap.size, 0);
+
+  const contentsMap = makeContentsMap([
+    extendZipEntry("xyz", makeZipEntry("baz", true)),
+    extendZipEntry("xyz", makeZipEntry("foo", true)),
+    extendZipEntry("xyz", makeZipEntry("foo/bar", false)),
+  ]);
+
+  assertEquals(contentsMap.size, 3);
+  assertExists(contentsMap.get(""));
+  assertEquals(contentsMap.get("")!.map((e) => e.name), ["baz", "foo"]);
+  assertExists(contentsMap.get("/baz"));
+  assertEquals(contentsMap.get("/baz")!.length, 0);
+  assertExists(contentsMap.get("/foo"));
+  assertEquals(contentsMap.get("/foo")!.map((e) => e.name), ["bar"]);
+});
+
+test("getOrCreateContentsMapEntry creates new entries", () => {
+  const contentsMap = new Map<string, ExtendedZipEntry[]>();
+
+  const e = getOrCreateContentsMapEntry(
+    contentsMap,
+    "/foo/bar/baz",
+  );
+  assertEquals(e, []);
+
+  assert(contentsMap.get("/foo/bar/baz") === e);
+});
+
+test("getOrCreateContentsMapEntry reuses existing entries", () => {
+  const contentsMap = new Map<string, ExtendedZipEntry[]>();
+  const arr: ExtendedZipEntry[] = [];
+  contentsMap.set("/foo/bar/baz", arr);
+
+  const e = getOrCreateContentsMapEntry(
+    contentsMap,
+    "/foo/bar/baz",
+  );
+  assert(arr === e);
+});
+
+test("getZipEntryPath works as expected", () => {
+  const topLevelEntry = makeZipEntry("foo", false);
+  const extendedTopLevelEntry = extendZipEntry("xyz", topLevelEntry);
+
+  assertEquals(getZipEntryPath(extendedTopLevelEntry), "/foo");
+
+  const entry = makeZipEntry("foo/bar/baz", false);
+  const extendedEntry = extendZipEntry("xyz", entry);
+
+  assertEquals(getZipEntryPath(extendedEntry), "/foo/bar/baz");
 });
