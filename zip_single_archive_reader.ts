@@ -153,10 +153,7 @@ export class ZipSingleArchiveReader implements FileSystemReader {
       ),
     );
 
-    this.#contents = Map.groupBy(
-      fixedContents,
-      (e) => e.parentPath,
-    );
+    this.#contents = makeContentsMap(fixedContents);
   }
 }
 
@@ -240,7 +237,7 @@ export function addMissingDirectoryEntries(
   const directories = new Map<string, ExtendedZipEntry>();
   for (const entry of contents) {
     if (entry.type === "directory") {
-      directories.set(`${entry.parentPath}/${entry.name}`, entry);
+      directories.set(getZipEntryPath(entry), entry);
     }
   }
 
@@ -305,4 +302,64 @@ export function makeDirectoryEntry(
     type: entry.type,
     url: entry.url,
   };
+}
+
+/**
+ * Given an array of extended Zip entries, create a map keyed by all the directories in the array
+ * where the contents of each map value is an array of the directory contents (extended entries).
+ *
+ * This is _similar_ to `Map.groupBy` but not identical: it also creates map entries when
+ * directories are empty, which `Map.groupBy` does not do.
+ *
+ * @param contents The contents array to convert into a map.
+ * @returns A map of parent directory to array of entries for the contents.
+ */
+export function makeContentsMap(
+  contents: ExtendedZipEntry[],
+): Map<string, ExtendedZipEntry[]> {
+  const result = new Map<string, ExtendedZipEntry[]>();
+
+  for (const entry of contents) {
+    if (entry.type === "directory") {
+      // Every directory must be present in the map.
+      getOrCreateContentsMapEntry(result, getZipEntryPath(entry));
+    }
+
+    const arr = getOrCreateContentsMapEntry(result, entry.parentPath);
+    arr.push(entry);
+  }
+
+  return result;
+}
+
+/**
+ * Helper function for contents maps. Gets or creates (and inserts) the value array for a given key.
+ *
+ * @param contents The contents map where to get or create an entry.
+ * @param key The key of the new or existing entry.
+ * @returns The entry array for the given key.
+ */
+export function getOrCreateContentsMapEntry(
+  contents: Map<string, ExtendedZipEntry[]>,
+  key: string,
+): ExtendedZipEntry[] {
+  let result = contents.get(key);
+
+  if (!result) {
+    result = [];
+    contents.set(key, result);
+  }
+
+  return result;
+}
+
+/**
+ * This function is used to reconstruct the **full path** of a file or directory within a
+ * zip archive based on an {@linkcode ExtendedZipEntry} object.
+ *
+ * @param entry The entry whose path we want.
+ * @returns The combined full path of the entry.
+ */
+export function getZipEntryPath(entry: ExtendedZipEntry): string {
+  return `${entry.parentPath}/${entry.name}`;
 }
